@@ -56,7 +56,7 @@ if __name__ == '__main__':
 			inteval = 30
 	else:  assert(0), "too many arguments"
 
-	tracker = kcftracker.KCFTracker(False, True, False)  # hog, fixed_window, multiscale
+	tracker = kcftracker.KCFTracker(False, True, True)  # hog, fixed_window, multiscale
 	#if you use hog feature, there will be a short pause after you draw a first boundingbox, that is due to the use of Numba.
 
 	cv2.namedWindow('tracking')
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 			boundingbox = tracker.update(frame)
 			t1 = time()
 
-			boundingbox = map(int, boundingbox)
+			boundingbox = list(map(int, boundingbox))
 			cv2.rectangle(frame,(boundingbox[0],boundingbox[1]), (boundingbox[0]+boundingbox[2],boundingbox[1]+boundingbox[3]), (0,255,255), 1)
 			
 			duration = 0.8*duration + 0.2*(t1-t0)
