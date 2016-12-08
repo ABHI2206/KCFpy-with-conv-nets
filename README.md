@@ -23,14 +23,11 @@ Download the sources and execute
 ```shell
 git clone https://github.com/Sshanu/KCFpy.git
 cd KCFpy
-python run.py
+python run_updated.py
 ```
-It will open the default camera of your computer, you can also open a different camera or a video
+It will open the default camera of your computer, you can also open a video
 ```shell
-
-```
-```shell
-python run.py ./test.avi  
+python run_updated.py inv test.avi  
 ```
 Try different options (hog/gray, fixed/flexible window, singlescale/multiscale) of KCF tracker by modifying the arguments in line `tracker = kcftracker.KCFTracker(False, True, False)  # hog, fixed_window, multiscale` in run.py.
 
