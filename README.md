@@ -10,15 +10,25 @@ It is fix version for python 3 of [KCFpy](https://github.com/uoip/KCFpy).
 
 It is translated from [KCFcpp](https://github.com/joaofaro/KCFcpp) (Authors: Joao Faro, Christian Bailer, Joao F. Henriques), a C++ implementation of Kernelized Correlation Filters. Find more references and code of KCF at http://www.robots.ox.ac.uk/~joao/circulant/
 
-### Requirements
-- Python 2.7 or 3
+## Requirements For KCF Tracker
+- Python 3
 - NumPy
 - Numba (needed if you want to use the hog feature)
 - OpenCV (ensure that you can `import cv2` in python)
 
+## Requirements For KCF Tracker with Vggnet 16
+- Python 3
+- NumPy
+- Numba (needed if you want to use the hog feature)
+- OpenCV (ensure that you can `import cv2` in python)
+- Theano
+- Pickle
+- Lasagne
 
 
-### Use
+## Use
+
+### For KCF Tracker
 Download the sources and execute
 ```shell
 git clone https://github.com/Sshanu/KCFpy.git
@@ -27,7 +37,18 @@ python run_updated.py
 ```
 It will open the default camera of your computer, you can also open a video
 ```shell
-python run_updated.py inv test.avi  
+python run_updated.py -inv test.avi  
+```
+### For KCF Tracker with Vggnet 16
+Download pretrained weights from: https://s3.amazonaws.com/lasagne/recipes/pretrained/imagenet/vgg16.pkl
+and save in new_vgg16 folder.
+Then execute
+```shell
+python run_cnn.py -inv test.avi -opt Output_Folder
+```
+or For Webcam
+```shell
+python run_cnn.py -opt Output_Folder 
 ```
 Try different options (hog/gray, fixed/flexible window, singlescale/multiscale) of KCF tracker by modifying the arguments in line `tracker = kcftracker.KCFTracker(False, True, False)  # hog, fixed_window, multiscale` in run.py.
 
