@@ -5,7 +5,7 @@ from time import time
 import argparse
 import os
 import theano
-import kcftracker as kcftracker
+import kcftracker_cnn as kcftracker
 from generic_utils import *
 import new_vgg16
 import new_vgg16.vgg16
