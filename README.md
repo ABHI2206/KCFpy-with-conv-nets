@@ -44,15 +44,19 @@ Download pretrained weights from: https://s3.amazonaws.com/lasagne/recipes/pretr
 and save in new_vgg16 folder.
 Then execute
 ```shell
-python run_cnn.py -inv test.avi -opt Output_Folder
+python run_cnn.py -inv test.avi -opt Output_Folder -mo cnn
 ```
 or For Webcam
 ```shell
-python run_cnn.py -opt Output_Folder 
+python run_cnn.py -opt Output_Folder -mo cnn
 ```
-Try different options (hog/gray, fixed/flexible window, singlescale/multiscale) of KCF tracker by modifying the arguments in line `tracker = kcftracker.KCFTracker(False, True, False)  # hog, fixed_window, multiscale` in run.py.
 
-### Peoblem
-I have struggled to make this python implementation as fast as possible, but it's still 2 ~ 3 times slower than its C++ counterpart, furthermore, the use of Numba introduce some unpleasant delay when initializing tracker (***NEW:*** the problem has been solved in [KCFnb](https://github.com/uoip/KCFnb) by using AOT compilation).
-
-***NEWER:*** I write a python wrapper for KCFcpp, see [KCFcpp-py-wrapper](https://github.com/uoip/KCFcpp-py-wrapper), so we can benefit from C++'s speed in python now.
+For using GPU to coompute conv layer :
+change line 14 of vgg16.py in new_vgg16 folder
+```
+from lasagne.layers import Conv2DLayer as ConvLayer
+```
+to
+```
+from lasagne.layers.dnn import Conv2DDNNLayer as ConvLayer
+```
