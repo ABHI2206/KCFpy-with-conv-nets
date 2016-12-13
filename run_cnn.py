@@ -12,7 +12,7 @@ import new_vgg16.vgg16
 parser = argparse.ArgumentParser()
 parser.add_argument('-inv','--input_video_name', required=False, help='Input image folder')
 parser.add_argument('-opt','--output_folder', required=True, help='Output file path')
-parser.add_argument('-mo','--mode', default="cnn",  help='One of cnn or hog or rgb')
+parser.add_argument('-mo','--mode', default="None",  help='One of cnn or hog or rgb')
 count = 0
 
 args = parser.parse_args()
@@ -24,20 +24,53 @@ w, h = 0, 0
 
 inteval = 30
 duration = 0.01
-if args.mode == "cnn":
-	get_conv1 = new_vgg16.vgg16.get_layer_output_function('conv2_2')
 
+if args.mode == "cnn":
+	vgg_net = new_vgg16.vgg16.build_model()	
+	get_conv1 = new_vgg16.vgg16.get_layer_output_function(vgg_net,'conv1_2')
 
 if not os.path.isdir(args.output_folder):
 	os.makedirs(args.output_folder)
 
-def get_features(z):
-	image = z
-	if numpy.max(image) <= 1:
+'''def get_features(z):
+	image = cv2.resize(z,(256,256))
+	if np.max(image) <= 1:
 		image = (image*255).astype(theano.config.floatX)
 	image = image.transpose(2,0,1)
 	image = image[None,:,:,:]
-	return get_conv1(image[0].transpose(1,2,0))
+	start = time()
+	y = get_conv1(image)[0]
+	print("Vgg_net  %s" %(time()-start))
+	y = y[6]
+	y = y[None,:,:]
+	y =y.transpose(1,2,0)
+	y = cv2.resize(y,(z.shape[0],z.shape[1]))
+	print("y shape", y.shape)
+	#y = y[None,:,:]
+
+	return y'''
+
+def get_features(z):
+	#print("z", z.shape)
+	image = cv2.resize(z,(256,256))
+	if np.max(image) <= 1:
+		image = (image*255).astype(theano.config.floatX)
+	image = image.transpose(2,0,1)
+	image = image[None,:,:,:]
+	start = time()
+	y = get_conv1(image)[0]
+	#print("Vgg_net  %s" %(time()-start))
+	y = y[9]
+	y = y[None,:,:]
+	y =y.transpose(1,2,0)
+	#print("y trans", y.shape)
+	y = cv2.resize(y,(z.shape[1],z.shape[0]))
+	#print("y shape", y.shape)
+
+	#y = y[None,:,:]
+	#y = y.transpose(1,2,0)
+	return y
+	
 
 
 # mouse callback function
@@ -75,7 +108,7 @@ if __name__ == '__main__':
 		cap = cv2.VideoCapture(0)
 	else:
 		cap = cv2.VideoCapture(args.input_video_name)
-	tracker = kcftracker.KCFTracker(False, True, True)  # hog, fixed_window, multiscale
+	tracker = kcftracker.KCFTracker(True, False, args.mode)  # hog, fixed_window, multiscale
 	#if you use hog feature, there will be a short pause after you draw a first boundingbox, that is due to the use of Numba.
 
 	cv2.namedWindow('tracking')
@@ -83,12 +116,15 @@ if __name__ == '__main__':
 
 	while(cap.isOpened()):
 		ret, main_frame = cap.read()
+		#print(main_frame.shape)
 		w_x = main_frame.shape[0]
 		w_y = main_frame.shape[1]
-		if(w_x<w_y):
+		if(w_x<w_y) and (w_y>=224):
 			scale = w_x
-		else:
+		elif (w_y<w_x) and (w_x>=224):
 			scale = w_y
+		else:
+			scale = 224
 		frame = main_frame
 		main_frame = cv2.resize(main_frame, (scale,scale))
 		frame = cv2.resize(frame, (224,224))
@@ -122,7 +158,7 @@ if __name__ == '__main__':
 			cv2.putText(main_frame, 'FPS: '+str(1/duration)[:4].strip('.'), (8,20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
 		#frame1 =cv2.resize(frame,(main_frame.shape[1],main_frame.shape[0]))
 		cv2.imshow('tracking', main_frame)
-		#cv2.imwrite("vid/frame%d.jpg" % count, frame1)  
+		cv2.imwrite("vid/frame%d.jpg" % count, main_frame)  
 		count += 1
 		c = cv2.waitKey(inteval) & 0xFF
 		if c==27 or c==ord('q'):

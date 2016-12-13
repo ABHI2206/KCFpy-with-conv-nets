@@ -1,7 +1,7 @@
 import numpy as np 
 import cv2
 import fhog
-
+import time
 
 xrange = range
 # ffttools
@@ -87,30 +87,28 @@ def subwindow(img, window, borderType=cv2.BORDER_CONSTANT):
 	border = getBorder(window, cutWindow)
 	res = img[cutWindow[1]:cutWindow[1]+cutWindow[3], cutWindow[0]:cutWindow[0]+cutWindow[2]]
 
-	# print border, img.shape, window
+	# #print border, img.shape, window
 	if(border != [0,0,0,0]):
 		res = cv2.copyMakeBorder(res, border[1], border[3], border[0], border[2], borderType)
 	return res
 
 
 
+
+
+
 # KCF tracker
 class KCFTracker:
-	def __init__(self, fixed_window=True, multiscale=False, ftype = 'hog'):
+	def __init__(self, fixed_window=True, multiscale=False, ftype = 'None'):
 		self.lambdar = 0.0001   # regularization
 		self.padding = 2.5   # extra area surrounding the target
 		self.output_sigma_factor = 0.125   # bandwidth of gaussian target
 		self.ftype = ftype
-		if(self.ftype == 'hog'):  # hog
-			# VOT
-			self.interp_factor = 0.012   # linear interpolation factor for adaptation
-			self.sigma = 0.6  # gaussian kernel bandwidth
-			# TPAMI   #interp_factor = 0.02   #sigma = 0.5
-			self.cell_size = 4   # HOG cell size
-		else:  # raw gray-scale image # aka CSK tracker
-			self.interp_factor = 0.075
-			self.sigma = 0.2
-			self.cell_size = 1
+		self.i=0
+	 	# raw gray-scale image # aka CSK tracker
+		self.interp_factor = 0.075
+		self.sigma = 0.2
+		self.cell_size = 1
 
 		if(multiscale):
 			self.template_size = 96   # template size
@@ -138,17 +136,17 @@ class KCFTracker:
 		return (0 if abs(divisor)<1e-3 else 0.5*(right-left)/divisor)
 
 	def createHanningMats(self):
+		start = time.time()
 		hann2t, hann1t = np.ogrid[0:self.size_patch[0], 0:self.size_patch[1]]
+		#print(hann2t.shape)
 		hann1t = 0.5 * (1 - np.cos(2*np.pi*hann1t/(self.size_patch[1]-1)))
 		hann2t = 0.5 * (1 - np.cos(2*np.pi*hann2t/(self.size_patch[0]-1)))
 		hann2d = hann2t * hann1t
-		if(self.ftype == 'rgb'):
-			hann1d = hann2d.reshape(self.size_patch[0]*self.size_patch[1])
-			self.hann = np.zeros((self.size_patch[2], 1), np.float32) + hann1d
-		else:
-			self.hann = hann2d
+		#print("hann", hann1t.shape,hann2t.shape, hann2d.shape)
+		self.hann = hann2d
 		self.hann = self.hann.astype(np.float32)
-
+		#print("Final Hann", self.hann.shape)
+		#print("createhann_start  %s" %(time.time()-start))
 	def createGaussianPeak(self, sizey, sizex):
 		syh, sxh = sizey/2, sizex/2
 		output_sigma = np.sqrt(sizex*sizey) / self.padding * self.output_sigma_factor
@@ -159,21 +157,12 @@ class KCFTracker:
 		return fftd(res)
 
 	def gaussianCorrelation(self, x1, x2):
-		if(self.ftype == 'hog' or self.ftype == 'cnn'):
-			c = np.zeros((self.size_patch[0], self.size_patch[1]), np.float32)
-			for i in xrange(self.size_patch[2]):
-				x1aux = x1[i, :].reshape((self.size_patch[0], self.size_patch[1]))
-				x2aux = x2[i, :].reshape((self.size_patch[0], self.size_patch[1]))
-				caux = cv2.mulSpectrums(fftd(x1aux), fftd(x2aux), 0, conjB = True)
-				caux = real(fftd(caux, True))
-				#caux = rearrange(caux)
-				c += caux
-			c = rearrange(c/np.float32(self.size_patch[2]))
-		else:
-			c = cv2.mulSpectrums(fftd(x1), fftd(x2), 0, conjB = True)   # 'conjB=' is necessary!
-			c = fftd(c, True)
-			c = real(c)
-			c = rearrange(c)
+		start = time.time()
+
+		c = cv2.mulSpectrums(fftd(x1), fftd(x2), 0, conjB = True)   # 'conjB=' is necessary!
+		c = fftd(c, True)
+		c = real(c)
+		c = rearrange(c)
 
 		if(x1.ndim==3 and x2.ndim==3):
 			d = (np.sum(x1[:,:,0]*x1[:,:,0]) + np.sum(x2[:,:,0]*x2[:,:,0]) - 2.0*c) / (self.size_patch[0]*self.size_patch[1]*self.size_patch[2])
@@ -182,10 +171,12 @@ class KCFTracker:
 
 		d = d * (d>=0)
 		d = np.exp(-d / (self.sigma*self.sigma))
-
+		#print(d.shape)
+		#print("gaussianCorrelation  %s" %(time.time()-start))
 		return d
 
 	def getFeatures(self, image, inithann, scale_adjust=1.0):
+		start = time.time()
 		extracted_roi = [0,0,0,0]   #[int,int,int,int]
 		cx = self._roi[0] + self._roi[2]/2  #float
 		cy = self._roi[1] + self._roi[3]/2  #float
@@ -206,12 +197,8 @@ class KCFTracker:
 				self._tmpl_sz[1] = int(padded_h)
 				self._scale = 1.
 
-			if(self.ftype == 'hog' or self.ftype =='cnn'):
-				self._tmpl_sz[0] = int(self._tmpl_sz[0]) / (2*self.cell_size) * 2*self.cell_size + 2*self.cell_size
-				self._tmpl_sz[1] = int(self._tmpl_sz[1]) / (2*self.cell_size) * 2*self.cell_size + 2*self.cell_size
-			else:
-				self._tmpl_sz[0] = int(self._tmpl_sz[0]) / 2 * 2
-				self._tmpl_sz[1] = int(self._tmpl_sz[1]) / 2 * 2
+			self._tmpl_sz[0] = int(self._tmpl_sz[0]) / 2 * 2
+			self._tmpl_sz[1] = int(self._tmpl_sz[1]) / 2 * 2
 
 		extracted_roi[2] = int(scale_adjust * self._scale * self._tmpl_sz[0])
 		extracted_roi[3] = int(scale_adjust * self._scale * self._tmpl_sz[1])
@@ -225,33 +212,30 @@ class KCFTracker:
 		if(z.shape[1]!=self._tmpl_sz[0] or z.shape[0]!=self._tmpl_sz[1]):
 			z = cv2.resize(z, tuple(map(int,self._tmpl_sz)))
 
-		if self.ftype == 'hog':
-			mapp = {'sizeX':0, 'sizeY':0, 'numFeatures':0, 'map':0}
-			mapp = fhog.getFeatureMaps(z, self.cell_size, mapp)
-			mapp = fhog.normalizeAndTruncate(mapp, 0.2)
-			mapp = fhog.PCAFeatureMaps(mapp)
-			self.size_patch = list(map(int, [mapp['sizeY'], mapp['sizeX'], mapp['numFeatures']]))
-			FeaturesMap = mapp['map'].reshape((self.size_patch[0]*self.size_patch[1], self.size_patch[2])).T   # (size_patch[2], size_patch[0]*size_patch[1])
-		elif self.ftype == 'cnn':
-			# print z.shape
-			feat = self.feat(z)
-			# print feat.max(), feat.min()
-			feat /= np.linalg.norm(feat.flatten()) - 0.5
-			# print feat.shape
-			FeaturesMap = feat.reshape((feat.shape[0]*feat.shape[1], feat.shape[2])).T
-			self.size_patch = [feat.shape[0], feat.shape[1], feat.shape[2]]
+		if self.ftype == 'cnn':
+			FeaturesMap = self.feat(z)
+
+		
 		else:
 			if(z.ndim==3 and z.shape[2]==3):
-				FeaturesMap = cv2.cvtColor(z, cv2.COLOR_BGR2GRAY)   # z:(size_patch[0], size_patch[1], 3)  FeaturesMap:(size_patch[0], size_patch[1])   #np.int8  #0~255
+				FeaturesMap = cv2.cvtColor(z, cv2.COLOR_BGR2GRAY)
+				#FeaturesMap = self.feat(z)
+				#cv2.imwrite("gray/gray%d.jpg" %self.i,FeaturesMap1)				
+				#cv2.imwrite("feat/feat%d.jpg" %self.i,FeaturesMap)
+				#self.i+=1
+				#print(FeaturesMap.shape,z.shape)   # z:(size_patch[0], size_patch[1], 3)  FeaturesMap:(size_patch[0], size_patch[1])   #np.int8  #0~255
 			elif(z.ndim==2):
-				FeaturesMap = z   #(size_patch[0], size_patch[1]) #np.int8  #0~255
-			FeaturesMap = FeaturesMap.astype(np.float32) / 255.0 - 0.5
-			self.size_patch = [z.shape[0], z.shape[1], 1]
+				FeaturesMap = self.feat(z)
+				#print(FeaturesMap.shape,z.shape)   #(size_patch[0], size_patch[1]) #np.int8  #0~255
+		FeaturesMap = FeaturesMap.astype(np.float32) / 255.0 - 0.5
+		self.size_patch = [z.shape[0], z.shape[1], 1]
 
 		if(inithann):
 			self.createHanningMats()  # createHanningMats need size_patch
 
 		FeaturesMap = self.hann * FeaturesMap
+		#print("Final feature_map", FeaturesMap.shape)
+		#print("get_Features  %s" %(time.time()-start))
 		return FeaturesMap
 
 	def detect(self, z, x):
