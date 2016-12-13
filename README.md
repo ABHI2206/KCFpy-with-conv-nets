@@ -51,7 +51,7 @@ or For Webcam
 python run_cnn.py -opt Output_Folder -mo cnn
 ```
 
-For using GPU to coompute conv layer :
+For using GPU to compute conv layer :
 change line 14 of vgg16.py in new_vgg16 folder
 ```
 from lasagne.layers import Conv2DLayer as ConvLayer
