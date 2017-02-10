@@ -10,6 +10,8 @@ It is fix version for python 3 of [KCFpy](https://github.com/uoip/KCFpy).
 
 It is translated from [KCFcpp](https://github.com/joaofaro/KCFcpp) (Authors: Joao Faro, Christian Bailer, Joao F. Henriques), a C++ implementation of Kernelized Correlation Filters. Find more references and code of KCF at http://www.robots.ox.ac.uk/~joao/circulant/
 
+To install dependencies run requirements.sh script.
+
 # KCF Tracker without cnn
 
 ## Requirements 
